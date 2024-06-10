@@ -43,56 +43,105 @@ public class WalletService {
     }
     public  Wallet getWalletById(Integer walletId){ return walletRepository.findById(walletId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found"));}
 
-    public Wallet deposit(Integer walletId, BigDecimal amount, @NonNull HttpServletRequest request) {
+    public Wallet deposit(Integer userId, BigDecimal amount, @NonNull HttpServletRequest request) {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Deposit amount must be greater than zero");
         }
-        final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String userEmail;
-        jwt = authHeader.substring(7);
-        userEmail = jwtService.extractUsername(jwt);
-        Optional<User> userOptional=userRepository.findByEmail(userEmail);
+
+        String token = getTokenFromRequest(request);
+        String userEmail = jwtService.extractUsername(token);
+
+        Optional<User> userOptional = userRepository.findByEmail(userEmail);
         if (userOptional.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found");
         }
+
         User user = userOptional.get();
-        Wallet userWallet = user.getWallet();
-
-        if (userWallet == null || !userWallet.getId().equals(walletId)) {
-            throw new AccessDeniedException("Access denied: User does not own this wallet");
+        if (!user.getId().equals(userId)) {
+            throw new AccessDeniedException("Access denied: User ID does not match token");
         }
-        Wallet wallet = walletRepository.findById(walletId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found"));
 
-        wallet.setBalance(wallet.getBalance().add(amount));
-        return walletRepository.save(wallet);
+        Wallet userWallet = user.getWallet();
+        if (userWallet == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found for the user");
+        }
+
+        userWallet.setBalance(userWallet.getBalance().add(amount));
+        return walletRepository.save(userWallet);
     }
 
-    public Wallet withdraw(Integer walletId, BigDecimal amount, @NonNull HttpServletRequest request) {
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "withdraw amount must be greater than zero");
+    private String getTokenFromRequest(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            return authHeader.substring(7);
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or missing Authorization header");
         }
+    }
+
+
+    public Wallet withdraw(Integer userId, BigDecimal amount, @NonNull HttpServletRequest request) {
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Withdraw amount must be greater than zero");
+        }
+
         final String authHeader = request.getHeader("Authorization");
-        final String jwt;
-        final String userEmail;
-        jwt = authHeader.substring(7);
-        userEmail = jwtService.extractUsername(jwt);
-        Optional<User> userOptional=userRepository.findByEmail(userEmail);
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No JWT token found in request headers");
+        }
+
+        final String jwt = authHeader.substring(7);
+        final String userEmail = jwtService.extractUsername(jwt);
+
+        Optional<User> userOptional = userRepository.findByEmail(userEmail);
         if (userOptional.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found");
         }
-        User user = userOptional.get();
-        Wallet userWallet = user.getWallet();
 
-        if (userWallet == null || !userWallet.getId().equals(walletId)) {
-            throw new AccessDeniedException("Access denied: User does not own this wallet");
+        User user = userOptional.get();
+        if (!user.getId().equals(userId)) {
+            throw new AccessDeniedException("Access denied: User ID does not match the authenticated user");
         }
-        Wallet wallet = walletRepository.findById(walletId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found"));
-        if(amount.compareTo(wallet.getBalance()) > 0){
+
+        Wallet userWallet = user.getWallet();
+        if (userWallet == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found for the user");
+        }
+
+        if (amount.compareTo(userWallet.getBalance()) > 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Insufficient balance in the wallet");
         }
-        wallet.setBalance(wallet.getBalance().subtract(amount));
-        return walletRepository.save(wallet);
+
+        userWallet.setBalance(userWallet.getBalance().subtract(amount));
+        return walletRepository.save(userWallet);
+    }
+
+
+    public BigDecimal getWalletBalance(Integer userId, @NonNull HttpServletRequest request) {
+        final String authHeader = request.getHeader("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No JWT token found in request headers");
+        }
+
+        final String jwt = authHeader.substring(7);
+        final String userEmail = jwtService.extractUsername(jwt);
+
+        Optional<User> userOptional = userRepository.findByEmail(userEmail);
+        if (userOptional.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found");
+        }
+
+        User user = userOptional.get();
+        if (!user.getId().equals(userId)) {
+            throw new AccessDeniedException("Access denied: User ID does not match the authenticated user");
+        }
+
+        Wallet userWallet = user.getWallet();
+        if (userWallet == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found for the user");
+        }
+
+        return userWallet.getBalance();
     }
 
 }

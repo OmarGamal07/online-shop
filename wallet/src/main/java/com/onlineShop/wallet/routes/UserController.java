@@ -9,6 +9,7 @@ import com.onlineShop.wallet.services.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -24,7 +25,17 @@ public class UserController {
         this.userService = userService;
         this.jwtService = jwtService;
     }
-
+    public static class TokenRequest {
+        public String token;
+    }
+    @GetMapping("/auth/getUserIdByToken/{token}")
+    public Integer getUserIdByToken(@PathVariable("token") String token) {
+        return userService.getIdFromToken(token);
+    }
+    @GetMapping("/auth/users/email/{username}")
+    public UserDetails getUserByUsername(@PathVariable String username) {
+        return userService.findByEmail(username);
+    }
     @PostMapping("/auth/register")
     public ResponseEntity<Map<String, Object>> register(@Valid @RequestBody UserRegistrationRequest registrationRequest) {
         Map<String, Object> response = new HashMap<>();
@@ -71,5 +82,9 @@ public class UserController {
             response.put("data", null);
             return ResponseEntity.badRequest().body(response);
         }
+    }
+    @GetMapping("/users/{userId}")
+    public Boolean getUserById(@PathVariable Integer userId){
+        return userService.userExistsById(userId);
     }
 }

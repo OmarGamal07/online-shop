@@ -7,10 +7,12 @@ import com.onlineShop.wallet.repositories.UserRepository;
 import com.onlineShop.wallet.repositories.WalletRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,15 +26,28 @@ public class UserService {
     private final AuthenticationManager authenticationManager;
     private final PasswordEncoder passwordEncoder;
 
+    private final   JwtService jwtService ;
 
     @Autowired
-    public UserService(UserRepository userRepository, WalletService walletService, AuthenticationManager authenticationManager, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, WalletService walletService, AuthenticationManager authenticationManager, PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
         this.walletService = walletService;
         this.authenticationManager = authenticationManager;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
+    public boolean userExistsById(Integer userId) {
+        try {
+            userRepository.findById(userId).orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));
+            return true;
+        } catch (UsernameNotFoundException e) {
+            return false;
+        }
+    }
+    public Integer getIdFromToken(String token){
+      return  jwtService.extractId(token);
+    }
     @Transactional
     public User register(User user) {
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
@@ -72,4 +87,10 @@ public User authenticate(String email, String password) {
     }
     return user;
 }
+
+    public UserDetails findByEmail(String username) {
+        return  userRepository.findByEmail(username)
+                .map(user -> (UserDetails) user)
+                .orElse(null);
+    }
 }
