@@ -6,6 +6,7 @@ import com.onlineShop.shop_service.entities.Order;
 import com.onlineShop.shop_service.services.OrderService;
 import com.onlineShop.shop_service.services.WalletClient;
 import io.micrometer.common.lang.NonNull;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +26,7 @@ public class OrderController {
         this.orderService = orderService;
         this.walletClient = walletClient;
     }
-
+    @Transactional
     @PostMapping("/{userId}")
     public ResponseEntity<Order> createOrder(@PathVariable Integer userId, HttpServletRequest request) {
         // Validate token and user

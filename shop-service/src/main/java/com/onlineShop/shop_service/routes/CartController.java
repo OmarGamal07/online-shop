@@ -9,6 +9,7 @@ import com.onlineShop.shop_service.services.CartService;
 import com.onlineShop.shop_service.services.WalletClient;
 import io.micrometer.common.lang.NonNull;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -39,6 +40,7 @@ public class CartController {
         JwtContext.setJwtToken(jwt);
     }
 
+    @Transactional
     @PostMapping("/{userId}")
     public ResponseEntity<Cart> addItemToCart(@PathVariable Integer userId, @RequestBody CartItemRequest cartItemRequest, @NonNull HttpServletRequest request) {
 //        todo:check if product exist not add it again

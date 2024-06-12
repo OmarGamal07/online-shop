@@ -6,6 +6,7 @@ import com.onlineShop.wallet.services.JwtService;
 import com.onlineShop.wallet.services.LoginRequest;
 import com.onlineShop.wallet.services.UserRegistrationRequest;
 import com.onlineShop.wallet.services.UserService;
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +37,7 @@ public class UserController {
     public UserDetails getUserByUsername(@PathVariable String username) {
         return userService.findByEmail(username);
     }
+    @Transactional
     @PostMapping("/auth/register")
     public ResponseEntity<Map<String, Object>> register(@Valid @RequestBody UserRegistrationRequest registrationRequest) {
         Map<String, Object> response = new HashMap<>();
@@ -63,6 +65,7 @@ public class UserController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+    @Transactional
     @PostMapping("/auth/login")
     public ResponseEntity<Map<String, Object>> authenticate( @RequestBody LoginRequest loginRequest) {
         Map<String, Object> response = new HashMap<>();

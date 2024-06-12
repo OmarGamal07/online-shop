@@ -6,22 +6,14 @@ spring.datasource.password=springstudent
 spring.jpa.hibernate.ddl-auto=update
 
 spring.config.import=optional:configserver:localhost://8888
-#eureka.client.serviceUrl.defaultZone=http://localhost:8761/eureka/
-#feign.hystrix.enabled=true
 spring.mvc.servlet.path=/api/v1
 
 
 spring.jpa.open-in-view=false
 
-#turn off spring boot banner
 spring.main.banner-mode=off
 
-#reduce logging level but if has error or warning say it
 logging.level.root=warn
 
-
-#resilience4j.retry.instances.sample-api.maxRetryAttempts=5
-#resilience4j.retry.instances.sample-api.waitDuration=1s
-#resilience4j.retry.instances.sample-api.enableExponentialBackoff=true
 
 

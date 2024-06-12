@@ -81,16 +81,9 @@ public class WalletService {
 
 
     public Wallet withdraw(Integer userId, BigDecimal amount, @NonNull HttpServletRequest request) {
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Withdraw amount must be greater than zero");
-        }
 
-        final String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No JWT token found in request headers");
-        }
 
-        final String jwt = authHeader.substring(7);
+        final String jwt = getTokenFromRequest(request);
         final String userEmail = jwtService.extractUsername(jwt);
 
         Optional<User> userOptional = userRepository.findByEmail(userEmail);
@@ -118,12 +111,9 @@ public class WalletService {
 
 
     public BigDecimal getWalletBalance(Integer userId, @NonNull HttpServletRequest request) {
-        final String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No JWT token found in request headers");
-        }
 
-        final String jwt = authHeader.substring(7);
+
+        final String jwt = getTokenFromRequest(request);
         final String userEmail = jwtService.extractUsername(jwt);
 
         Optional<User> userOptional = userRepository.findByEmail(userEmail);

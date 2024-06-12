@@ -26,19 +26,17 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final CartService cartService;
     private final WalletClient walletClient;
-
+    private final InventoryClient inventoryClient;
     @Autowired
-    public OrderService(OrderRepository orderRepository, ProductRepository productRepository, CartService cartService, WalletClient walletClient) {
+    public OrderService(OrderRepository orderRepository, ProductRepository productRepository, CartService cartService, WalletClient walletClient, InventoryClient inventoryClient) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.cartService = cartService;
         this.walletClient = walletClient;
+        this.inventoryClient = inventoryClient;
     }
 
     public Order createOrder(Integer userId, HttpServletRequest request) {
-        List<OrderItem> orderItems = new ArrayList<>();
-
-        // Get the cart items for the user
         List<CartItem> cartItems = cartService.getItemsByUserId(userId);
 
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -46,9 +44,28 @@ public class OrderService {
         for (CartItem cartItem : cartItems) {
             Product product = cartItem.getProduct();
             int quantity = cartItem.getQuantity();
-            BigDecimal price = BigDecimal.valueOf(product.getPrice()).multiply(BigDecimal.valueOf(quantity));
 
-            // Create order items
+            BigDecimal price = BigDecimal.valueOf(product.getPrice()).multiply(BigDecimal.valueOf(quantity));
+            totalAmount = totalAmount.add(price);
+        }
+
+        BigDecimal walletBalance = getWalletBalance(userId, request);
+        if (walletBalance.compareTo(totalAmount) < 0) {
+            throw new RuntimeException("Insufficient balance in the wallet.");
+        }
+
+        List<OrderItem> orderItems = new ArrayList<>();
+
+        for (CartItem cartItem : cartItems) {
+            Product product = cartItem.getProduct();
+            Integer productCode = product.getId();
+            int quantity = cartItem.getQuantity();
+
+            if (!inventoryClient.isProductAvailable(productCode, quantity)) {
+                throw new RuntimeException(STR."Product \{productCode} is not available in the desired quantity");
+            }
+
+            BigDecimal price = BigDecimal.valueOf(product.getPrice()).multiply(BigDecimal.valueOf(quantity));
             OrderItem orderItem = OrderItem.builder()
                     .product(product)
                     .quantity(quantity)
@@ -56,19 +73,11 @@ public class OrderService {
                     .build();
             orderItems.add(orderItem);
 
-            totalAmount = totalAmount.add(price);
+            inventoryClient.reserveProduct(productCode, quantity);
         }
 
-        // Check if the user has enough balance in the wallet
-        BigDecimal walletBalance = getWalletBalance(userId, request);
-        if (walletBalance.compareTo(totalAmount) < 0) {
-            throw new RuntimeException("Insufficient balance in the wallet.");
-        }
-
-        // Deduct the total amount from the wallet
         withdrawFromWallet(userId, totalAmount, request);
 
-        // Create and save the order
         Order order = Order.builder()
                 .userId(userId)
                 .items(orderItems)
@@ -78,12 +87,14 @@ public class OrderService {
                 .build();
         order = orderRepository.save(order);
 
-        // Clear the cart after order creation
+        for (OrderItem item : orderItems) {
+            inventoryClient.updateStock(item.getProduct().getId(), item.getQuantity());
+        }
+
         cartService.deleteAllItemsInCart(userId);
 
         return order;
     }
-
     private BigDecimal getWalletBalance(Integer userId, HttpServletRequest request) {
         String token = getTokenFromRequest(request);
         ResponseEntity<BigDecimal> response = walletClient.getWalletBalance(userId);

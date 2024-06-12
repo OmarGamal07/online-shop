@@ -9,6 +9,7 @@ import com.onlineShop.wallet.services.TransactionService;
 import com.onlineShop.wallet.services.WalletService;
 import io.micrometer.common.lang.NonNull;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,7 +36,7 @@ public class WalletController {
         this.walletService = walletService;
         this.transactionService = transactionService;
     }
-
+    @Transactional
     @PostMapping("/deposit/{userId}/{amount}")
     public ResponseEntity<Map<String, Object>> deposit(@PathVariable Integer userId,
                                                        @PathVariable BigDecimal amount,
@@ -59,7 +60,7 @@ public class WalletController {
         }
     }
 
-
+    @Transactional
     @PostMapping("/withdraw/{userId}/{mount}")
     public ResponseEntity<Map<String, Object>> withdraw(@PathVariable Integer userId, @PathVariable BigDecimal mount, @NonNull HttpServletRequest request) {
         Map<String, Object> response = new HashMap<>();
